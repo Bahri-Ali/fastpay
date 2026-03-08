@@ -1,0 +1,41 @@
+package jwt
+
+import (
+	"time"
+
+	"github.com/golang-jwt/jwt/v5"
+	"google.golang.org/protobuf/cmd/protoc-gen-go/internal_gengo"
+)
+
+type Claims struct {
+    UserID int `json:"user_id"`
+    Role   string `json:"role"`
+    jwt.RegisteredClaims
+}
+
+func GenerateToken(UserID int , Role string , secret string , expirationHours int)(string , error){
+
+	Claims:= Claims{
+		UserID: UserID,
+		Role: Role,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(expirationHours)*time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+            Issuer:    "FASTPAY",
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodES256 ,Claims )
+	return  token.SignedString([]byte(secret))
+}
+
+func ValidateToken(Token string , secret string ) (*Claims , error){
+	token , err := jwt.ParseWithClaims(Token , &Claims{} , func(token *jwt.Token)(interface{}, error)){
+		return []byte(secret), nil
+	}
+	if err != nil return  err
+
+	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
+        return claims, nil
+    }
+	
+}
