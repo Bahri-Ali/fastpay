@@ -1,12 +1,11 @@
 package auth 
 import (
     "errors"
-    "context"
     "fastpay-backend/config"
     "fastpay-backend/pkg/hash"
     "fastpay-backend/pkg/jwt"
     "fastpay-backend/pkg/utils"
-	"github.com/jackc/pgx/v5/pgxpool"
+    "context"
 )
 
 type ServiceInterface interface{
@@ -21,23 +20,22 @@ type service struct{
 }
 
 
-func NewService(db *pgxpool.Pool, cfg *config.Config) ServiceInterface{
-	authRepo := NewRepository(db)
+func NewService(repo Repository , cfg *config.Config) ServiceInterface{
     return &service{
-        repository: authRepo, 
+        repository: repo, 
         cfg:        cfg,
     }
 }
 
 func(s *service) Register(req *RegisterRequest )(*AuthResponse , error){
-	existingUser , err := s.repository.GetUserByPhone(req.PhoneNumber)
+	existingUser , err := s.repository.GetUserByPhone(context.Background() , req.PhoneNumber)
 	if err !=nil {return nil, err} 
 	if existingUser !=nil  {return  nil, errors.New("phone number already registered") }
 
-	hashedPassword, err := hash.HashPassword(req.Password)
+	hashedPassword, err := hash.HashPassword(s.cfg,req.Password)
     if err != nil {return nil, err}
 
-	userIdentifier := utils.GenerateUserID(req.WilayaCode)
+	userIdentifier := utils.GenerateUserID(req.WilayaCode ,  s.cfg )
 
 	
 	user := &User{
@@ -51,7 +49,7 @@ func(s *service) Register(req *RegisterRequest )(*AuthResponse , error){
 
 	if req.Email != "" {user.Email = &req.Email}
 
-	err = s.repository.CreateUser(user) 
+	err = s.repository.CreateUser(context.Background() ,user) 
     if err != nil     {return nil, err}
 
 	token, err := jwt.GenerateToken(user.ID, string(user.Role), s.cfg.JWTSecret, s.cfg.JWTExpiration)
@@ -61,8 +59,7 @@ func(s *service) Register(req *RegisterRequest )(*AuthResponse , error){
 
 
 func (s *service) Login(req *LoginRequest) (*AuthResponse, error) {
-    // 1. Get user by phone
-    user, err := s.repository.GetUserByPhone(req.PhoneNumber)
+    user, err := s.repository.GetUserByPhone(context.Background(),req.PhoneNumber)
     if err != nil {
         return nil, err
     }
@@ -70,21 +67,17 @@ func (s *service) Login(req *LoginRequest) (*AuthResponse, error) {
         return nil, errors.New("invalid credentials")
     }
 
-    // 2. Check password
     if !hash.CheckPasswordHash(req.Password, user.PasswordHash) {
         return nil, errors.New("invalid credentials")
     }
 
-    // 3. Check if user is active
     if !user.IsActive {
         return nil, errors.New("account is disabled")
     }
 
-    // 4. Generate JWT Token
     token, err := jwt.GenerateToken(user.ID, string(user.Role), s.cfg.JWTSecret, s.cfg.JWTExpiration)
     if err != nil {
         return nil, err
     }
-
     return &AuthResponse{Token: token}, nil
 }

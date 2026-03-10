@@ -20,14 +20,15 @@ type repo struct {
 func NewRepository(db *pgxpool.Pool) Repository {
     return &repo{db: db}
 }
-
-func(r *repo) CreateUser(ctx context.Context , user *User) error {
-	query := `
-        INSERT INTO users (user_identifier, phone_number, email, password_hash, full_name, role, parent_id, is_active)
+func (r *repo) CreateUser(ctx context.Context, user *User) error {
+    // تم إضافة علامات تنصيص حول "role" لأنها كلمة محجوزة
+    query := `
+        INSERT INTO users (user_identifier, phone_number, email, password_hash, full_name, "role", parent_id, is_active)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING id, created_at
     `
-	err := r.db.QueryRow(ctx, query,
+
+    err := r.db.QueryRow(ctx, query,
         user.UserIdentifier,
         user.PhoneNumber,
         user.Email,
@@ -38,15 +39,19 @@ func(r *repo) CreateUser(ctx context.Context , user *User) error {
         user.IsActive,
     ).Scan(&user.ID, &user.CreatedAt)
 
-	if err != nil {return err}
-	return nil
-
+    return err
 }
 
-func ( r *repo) GetUserByPhone(ctx context.Context , phone string) (*User , error){
+// GetUserByPhone fetches a user by phone number
+func (r *repo) GetUserByPhone(ctx context.Context, phone string) (*User, error) {
+    // تم إضافة علامات تنصيص حول "role"
+    query := `
+        SELECT id, user_identifier, phone_number, email, password_hash, full_name, "role", parent_id, is_active, created_at
+        FROM users
+        WHERE phone_number = $1
+    `
 
-	query := `SELECT FROM users WHERE phone_number = $phone`
-	user := &User{}
+    user := &User{}
     err := r.db.QueryRow(ctx, query, phone).Scan(
         &user.ID,
         &user.UserIdentifier,
@@ -63,7 +68,9 @@ func ( r *repo) GetUserByPhone(ctx context.Context , phone string) (*User , erro
     if err != nil {
         if errors.Is(err, sql.ErrNoRows) {
             return nil, nil 
-		}
-	}
-	return user , err
+        }
+        return nil, err
+    }
+
+    return user, nil
 }

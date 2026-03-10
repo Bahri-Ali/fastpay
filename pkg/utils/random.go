@@ -6,7 +6,7 @@ import (
 
 )
 
-func GenerateUserID(wilayaCode int , birthDate int ,ctx *config.Config) string{
+func GenerateUserID(wilayaCode int , ctx *config.Config) string{
 	const digits = "0123456789"
     b := make([]byte, ctx.UserIdSize)
 

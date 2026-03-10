@@ -10,26 +10,26 @@ import (
 )
 
 var (
-	pgPoll *pgxpool.Pool 
+	PgPoll *pgxpool.Pool 
 	rdb *redis.Client
 
 )
 
-func connectDb(ctx *config.Config){
+func ConnectDb(ctx *config.Config){
     dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
         ctx.DBHost, ctx.DBUser, ctx.DBPassword, ctx.DBName, ctx.DBPort)
 	
 	var err error
-	pgPoll , err = pgxpool.New(context.Background() , dsn)
+	PgPoll , err = pgxpool.New(context.Background() , dsn)
 	if err != nil {log.Printf("db connection faild ")}
 
-	err = pgPoll.Ping(context.Background())
+	err = PgPoll.Ping(context.Background())
 	if err != nil {log.Println("problem of ping db")}
 
 	log.Println("connect to db done ")
 }
 
-func connectRedis(ctx *config.Config){
+func ConnectRedis(ctx *config.Config){
 	rdb = redis.NewClient(&redis.Options{
 		Addr: ctx.RedisHost+":"+ctx.RedisPort,
 		Password: ctx.RedisPassword,

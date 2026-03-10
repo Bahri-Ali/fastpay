@@ -12,7 +12,7 @@ const(
 )
 
 type User struct {
-    ID             string    `json:"id" gorm:"type:uuid;unique;primaryKey;default:gen_random_uuid()"` // Technical ID (UUID)
+    ID             int    `json:"id" gorm:"type:uuid;unique;primaryKey;default:gen_random_uuid()"` // Technical ID (UUID)
     UserIdentifier string    `json:"user_identifier" gorm:"unique;not null"`                  // Custom Public ID (30 digits)
     PhoneNumber    string    `json:"phone_number" gorm:"unique;not null"`
     Email          *string   `json:"email" gorm:"unique"`

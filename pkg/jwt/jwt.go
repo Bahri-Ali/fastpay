@@ -1,10 +1,10 @@
 package jwt
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"google.golang.org/protobuf/cmd/protoc-gen-go/internal_gengo"
 )
 
 type Claims struct {
@@ -29,13 +29,13 @@ func GenerateToken(UserID int , Role string , secret string , expirationHours in
 }
 
 func ValidateToken(Token string , secret string ) (*Claims , error){
-	token , err := jwt.ParseWithClaims(Token , &Claims{} , func(token *jwt.Token)(interface{}, error)){
+	token , err := jwt.ParseWithClaims(Token , &Claims{} , func(token *jwt.Token)(interface{}, error){
 		return []byte(secret), nil
-	}
-	if err != nil return  err
+	})
+	if err != nil {return  nil,err}
 
 	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
         return claims, nil
     }
-	
+	return   nil, fmt.Errorf("invalid token")
 }

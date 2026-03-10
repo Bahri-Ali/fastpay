@@ -1,17 +1,35 @@
-package main 
-import(
-	"fmt"
-	"log"
+package main
+
+import (
 	"fastpay-backend/config"
-    "fastpay-backend/database"
+	"fastpay-backend/database"
+	"fastpay-backend/internal/auth"
+	"fastpay-backend/routes"
+	"log"
 )
 
 
 func main(){
-	ctx := config.LoadConfig()
+	cfg := config.LoadConfig()
 
-	database.connectDb(ctx)
-	database.connectRedis(ctx)
+	database.ConnectDb(cfg)
+	database.ConnectRedis(cfg)
 
-	fmt.Println("server are working")
+	//auth layer
+	authRepo := auth.NewRepository(database.PgPoll)
+	authService := auth.NewService(authRepo  , cfg)
+	authController := auth.NewController(authService)
+
+
+
+	routerConfig := &routes.RouteConfig{
+		AuthCntr: authController,
+	}	
+	
+
+	router := routes.SetupRouter(routerConfig)
+    log.Println("Server starting on :8080")
+        if err := router.Run(":8080"); err != nil {
+            log.Fatalf("Failed to start server: %v", err)
+        }
 }
