@@ -47,12 +47,12 @@ func (ctrl *Controller) Login(c *gin.Context){
 		return
 	}
 
-	resp , err := ctrl.authService.Login(&req)
-	if err!=nil {
-		c.JSON(http.StatusBadRequest , gin.H{
-			"err":err.Error(),
-		})
-		return
-	} 
-	c.JSON(http.StatusOK , resp)
+    token, err := ctrl.authService.Login(&req)
+    if err != nil {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+        return
+    }
+	c.JSON(http.StatusOK , gin.H{
+		"token":token,
+	})
 }

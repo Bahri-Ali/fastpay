@@ -24,12 +24,14 @@ func main(){
 
 	routerConfig := &routes.RouteConfig{
 		AuthCntr: authController,
+		AuthRepo: &authRepo,
 	}	
 	
 
 	router := routes.SetupRouter(routerConfig)
-    log.Println("Server starting on :8080")
-        if err := router.Run(":8080"); err != nil {
+    log.Println("Server starting on :8080 with SSL (HTTPS)")
+        if err := router.RunTLS(":8080","cert.pem", "key.pem")
+		 err != nil {
             log.Fatalf("Failed to start server: %v", err)
         }
 }

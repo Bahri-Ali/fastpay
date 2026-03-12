@@ -8,12 +8,12 @@ import (
 )
 
 type Claims struct {
-    UserID int `json:"user_id"`
+    UserID string `json:"user_id"`
     Role   string `json:"role"`
     jwt.RegisteredClaims
 }
 
-func GenerateToken(UserID int , Role string , secret string , expirationHours int)(string , error){
+func GenerateToken(UserID string , Role string , secret string , expirationHours int)(string , error){
 
 	Claims:= Claims{
 		UserID: UserID,
@@ -24,7 +24,7 @@ func GenerateToken(UserID int , Role string , secret string , expirationHours in
             Issuer:    "FASTPAY",
 		},
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodES256 ,Claims )
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256 ,Claims )
 	return  token.SignedString([]byte(secret))
 }
 
