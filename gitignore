@@ -1,0 +1,21 @@
+# Binaries
+/bin/
+/build/
+/dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+
+
+
+
+# Environment files
+.env
+
+.cert.pem
+.key.pem
+
+

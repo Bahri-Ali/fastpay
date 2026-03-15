@@ -23,6 +23,12 @@ type Config struct{
 	JWTSalt int
 
 	UserIdSize int
+
+	SMTPHOST string
+	SMTPPORT string
+	SMTPUSER string
+	SMTPPASS string
+	SMTPFORM string
 }
 
 
@@ -53,6 +59,13 @@ func LoadConfig() *Config{
 		JWTSalt: JWT_SALT,
 
 		UserIdSize: UserIdSize,
+
+
+		SMTPHOST: os.Getenv("SMtpHost"),
+		SMTPPORT: os.Getenv("smtpPort"),
+		SMTPUSER: os.Getenv("smtpUser"),
+		SMTPPASS: os.Getenv("smtpPass"),
+		SMTPFORM: os.Getenv("smtpFrom"),
     }
 
 }

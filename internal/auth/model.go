@@ -17,7 +17,7 @@ type User struct {
     PhoneNumber    string    `json:"phone_number" gorm:"unique;not null"`
     Email          *string   `json:"email" gorm:"unique"`
     PasswordHash   string    `json:"-"`
-    FullName       string    `json:"full_name"`
+    FullName       string    `json:"full_name"`     
     Role           UserRole  `json:"role" gorm:"type:user_role;default:'normal'"`
     ParentID       *string   `json:"parent_id" gorm:"type:uuid"` 
     IsActive       bool      `json:"is_active" gorm:"default:true"`

@@ -11,7 +11,7 @@ import (
 
 var (
 	PgPoll *pgxpool.Pool 
-	rdb *redis.Client
+	Rdb *redis.Client
 
 )
 
@@ -30,12 +30,12 @@ func ConnectDb(ctx *config.Config){
 }
 
 func ConnectRedis(ctx *config.Config){
-	rdb = redis.NewClient(&redis.Options{
+	Rdb = redis.NewClient(&redis.Options{
 		Addr: ctx.RedisHost+":"+ctx.RedisPort,
 		Password: ctx.RedisPassword,
 		DB: 0,
 	})
-	_,err := rdb.Ping(context.Background()) .Result()
+	_,err := Rdb.Ping(context.Background()) .Result()
 	if err != nil{log.Println("faild to connect to redis")}
 	log.Println("connect to redis done")
 }

@@ -1,13 +1,14 @@
 package auth
 
 import (
-    "context"
-    "errors"
-    "time"
+	"context"
+	"errors"
+	"time"
 
-    "fastpay-backend/config"
-    "fastpay-backend/pkg/hash"
-    "fastpay-backend/pkg/utils"
+	"fastpay-backend/config"
+	"fastpay-backend/internal/wallet"
+	"fastpay-backend/pkg/hash"
+	"fastpay-backend/pkg/utils"
 )
 
 type ServiceInterface interface {
@@ -18,11 +19,13 @@ type ServiceInterface interface {
 type service struct {
     repository Repository
     cfg        *config.Config
+    walletRepo wallet.Repository
 }
 
-func NewService(repo Repository, cfg *config.Config) ServiceInterface {
+func NewService(repo Repository,wRepo wallet.Repository , cfg *config.Config ) ServiceInterface {
     return &service{
         repository: repo,
+        walletRepo: wRepo,
         cfg:        cfg,
     }
 }
@@ -89,6 +92,19 @@ func (s *service) Register(req *RegisterRequest) (*AuthResponse, error) {
     if err != nil {
         return nil, err
     }
+
+
+    newWallet := &wallet.Wallet{
+        UserID:   user.ID,
+        Balance:  0.0,
+        Currency: "DZD",
+        IsFrozen: false,
+    } 
+    if err := s.walletRepo.CreateWallet(ctx , newWallet)
+    err!=nil{
+        return nil , err
+    }
+
 
     return &AuthResponse{Token: token}, nil
 }
