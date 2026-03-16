@@ -4,51 +4,49 @@ import (
 	"fastpay-backend/config"
 	"fastpay-backend/database"
 	"fastpay-backend/internal/auth"
-	"fastpay-backend/internal/transaction" 
+	"fastpay-backend/internal/transaction"
+	"fastpay-backend/internal/user"
 	"fastpay-backend/internal/wallet"
 	"fastpay-backend/pkg/emails"
 	"fastpay-backend/routes"
+	"fmt"
 	"log"
 )
 
 func main() {
-    // 1. Load Config
     cfg := config.LoadConfig()
-
-    // 2. Connect Databases
+    fmt.Printf("DEBUG CONFIG: Host=%s, Port=%s\n", cfg.SMTPHost, cfg.SMTPPort)
     database.ConnectDb(cfg)
     database.ConnectRedis(cfg)
 
-    // 3. Initialize Repositories
     walletRepo := wallet.NewRepository(database.PgPoll)
     authRepo := auth.NewRepository(database.PgPoll)
-    txRepo := transaction.NewRepository(database.PgPoll) // جديد
+    txRepo := transaction.NewRepository(database.PgPoll)
 
-    // 4. Initialize Utils (Mailer)
-    // تأكد من أن الـ Config يحتوي على بيانات SMTP
-    mailer := email.NewMailer(cfg.SMTPHOST, cfg.SMTPPORT, cfg.SMTPUSER, cfg.SMTPPASS, cfg.SMTPFORM)
+    mailer := email.NewMailer(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPass, cfg.SMTPFrom)
 
-    // 5. Initialize Services
     authService := auth.NewService(authRepo, walletRepo, cfg)
-    txService := transaction.NewService(txRepo, database.Rdb, mailer) // جديد: تمرير Redis و Mailer
+    txService := transaction.NewService(txRepo, database.Rdb, mailer) 
 
-    // 6. Initialize Controllers
     authController := auth.NewController(authService)
-    txController := transaction.NewController(txService) // جديد
+    txController := transaction.NewController(txService)
 
-    // 7. Setup Router Config
+
+    userRepo := user.NewRepository(database.PgPoll)
+    userService := user.NewService(userRepo, database.Rdb, mailer)
+    userController := user.NewController(userService)
+
     routerConfig := &routes.RouteConfig{
         AuthCntr:     authController,
-        AuthRepo:     authRepo,    // تم التصحيح: تمرير الـ Interface مباشرة
-        TxController: txController, // جديد
+        AuthRepo:     authRepo,  
+        TxController: txController,
+        UserController:userController, 
     }
 
     router := routes.SetupRouter(routerConfig)
 
-    // 8. Run Server
     log.Println("Server starting on :8080 with SSL (HTTPS)")
     
-    // تصحيح خطأ الـ Syntax في الـ if
     if err := router.RunTLS(":8080", "cert.pem", "key.pem"); err != nil {
         log.Fatalf("Failed to start server: %v", err)
     }

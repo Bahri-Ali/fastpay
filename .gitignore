@@ -1,0 +1,10 @@
+# Environment variables
+.env
+
+# Certificates and Keys
+cert.pem
+key.pem
+
+# Go specific (optional but recommended)
+bin/
+vendor/

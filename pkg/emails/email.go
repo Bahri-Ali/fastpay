@@ -1,6 +1,8 @@
 package email
 
 import (
+    "crypto/rand"
+    "encoding/hex"
     "fmt"
     "net/smtp"
 )
@@ -23,24 +25,41 @@ func NewMailer(host, port, username, password, from string) *Mailer {
     }
 }
 
-// Send sends an email
+// Send sends an email with proper headers
 func (m *Mailer) Send(to, subject, body string) error {
-    // Header formatting
-    msg := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s", m.From, to, subject, body)
+    // 1. Generate a random Message-ID (Required by RFC 5322)
+    b := make([]byte, 16)
+    rand.Read(b)
+    messageID := fmt.Sprintf("<%s@%s>", hex.EncodeToString(b), m.Host)
 
-    // Authentication
+    // 2. Construct Headers
+    headers := make(map[string]string)
+    headers["From"] = m.From
+    headers["To"] = to
+    headers["Subject"] = subject
+    headers["MIME-Version"] = "1.0"
+    headers["Content-Type"] = "text/plain; charset=\"utf-8\""
+    headers["Message-ID"] = messageID
+
+    // 3. Build Message String
+    message := ""
+    for k, v := range headers {
+        message += fmt.Sprintf("%s: %s\r\n", k, v)
+    }
+    message += "\r\n" + body
+
+    // 4. Authentication
     auth := smtp.PlainAuth("", m.Username, m.Password, m.Host)
 
-    // Sending
+    // 5. Send
     addr := fmt.Sprintf("%s:%s", m.Host, m.Port)
-    err := smtp.SendMail(addr, auth, m.From, []string{to}, []byte(msg))
-    
-    // For debugging in console if Mailtrap fails
+    err := smtp.SendMail(addr, auth, m.From, []string{to}, []byte(message))
+
     if err != nil {
         fmt.Printf("Failed to send email to %s: %v\n", to, err)
         return err
     }
-    
+
     fmt.Printf("Email sent successfully to %s (Check Mailtrap Inbox)\n", to)
     return nil
 }

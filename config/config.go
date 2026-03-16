@@ -24,11 +24,12 @@ type Config struct{
 
 	UserIdSize int
 
-	SMTPHOST string
-	SMTPPORT string
-	SMTPUSER string
-	SMTPPASS string
-	SMTPFORM string
+
+    SMTPHost string
+    SMTPPort string
+    SMTPUser string
+    SMTPPass string
+    SMTPFrom string
 }
 
 
@@ -61,11 +62,11 @@ func LoadConfig() *Config{
 		UserIdSize: UserIdSize,
 
 
-		SMTPHOST: os.Getenv("SMtpHost"),
-		SMTPPORT: os.Getenv("smtpPort"),
-		SMTPUSER: os.Getenv("smtpUser"),
-		SMTPPASS: os.Getenv("smtpPass"),
-		SMTPFORM: os.Getenv("smtpFrom"),
+		SMTPHost: os.Getenv("SMTPHOST"),
+        SMTPPort: os.Getenv("SMTPPORT"),
+        SMTPUser: os.Getenv("SMTPUSER"),
+        SMTPPass: os.Getenv("SMTPPASS"),
+        SMTPFrom: os.Getenv("SMTPFORM"),
     }
 
 }

@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+
 	"fastpay-backend/config"
-	email "fastpay-backend/pkg/emails"
+	"fastpay-backend/pkg/emails"
 	"fastpay-backend/pkg/hash"
 	"fastpay-backend/pkg/utils"
 	"fmt"
@@ -107,14 +108,13 @@ func (s *service) VerifyAndChangePassword(ctx context.Context, req *VerifyPasswo
     json.Unmarshal([]byte(val), &data)
 
    
-    pinKey := "pin:change_pass:" + req.VerificationToken
     
    
     userID := data["user_id"].(string)
     newPass := data["new_password"].(string)
 
    
-    newHash, err := hash.HashPassword(ctx *config.Config ,newPass)
+    newHash, err := hash.HashPassword(&config.Config{} ,newPass)
     if err != nil {
         return nil, err
     }
