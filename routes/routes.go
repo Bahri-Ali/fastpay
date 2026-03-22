@@ -1,38 +1,3 @@
-// package routes
-
-// import (
-// 	"fastpay-backend/internal/auth"
-// 	"fastpay-backend/internal/middleware"
-
-// 	// "fastpay-backend/internal/transaction"
-
-// 	"github.com/gin-gonic/gin"
-// )
-
-// type RouteConfig struct{
-// 	AuthCntr *auth.Controller
-// 	AuthRepo *auth.Repository
-
-// }
-
-// func  SetupRouter(cfg *RouteConfig) *gin.Engine{
-// 	Router := gin.Default()
-
-// 	Router.Use(middleware.RateLimit())
-// 	api := Router.Group("/api/v1")
-
-//     if cfg.AuthCntr !=nil{
-//     	AuthApi := api.Group("/auth")
-// 		{
-//     	    AuthApi.POST("/register", cfg.AuthCntr.Register)
-//             AuthApi.POST("/login", cfg.AuthCntr.Login)
-//         }
-
-//     }
-
-// 	return Router
-// }
-
 package routes
 
 import (
@@ -73,6 +38,7 @@ func SetupRouter(cfg *RouteConfig) *gin.Engine {
         {
             protected.POST("/transfer", cfg.TxController.InitTransfer)
             protected.POST("/transfer/verify", cfg.TxController.VerifyTransfer)
+            protected.GET("/GetTransactions", cfg.TxController.GetTransactionHistory)
         }
     }
 

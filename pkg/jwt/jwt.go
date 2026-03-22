@@ -29,24 +29,11 @@ func GenerateToken(UserID string , Role string , secret string , expirationHours
 	return  token.SignedString([]byte(secret))
 }
 
-// func ValidateToken(Token string , secret string ) (*Claims , error){
-// 	token , err := jwt.ParseWithClaims(Token , &Claims{} , func(token *jwt.Token)(interface{}, error){
-// 		return []byte(secret), nil
-// 	})
-// 	if err != nil {return  nil,err}
-
-// 	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
-//         return claims, nil
-//     }
-// 	return   nil, fmt.Errorf("invalid token")
-// }
 func ValidateToken() string {
 	b := make([]byte, 32)
-
 	_, err := rand.Read(b)
 	if err != nil {
 		return ""
 	}
-
 	return hex.EncodeToString(b)
 }

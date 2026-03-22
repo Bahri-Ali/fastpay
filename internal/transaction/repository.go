@@ -1,19 +1,16 @@
 package transaction
 
 import (
-    "context"
-    "errors"
-    // "fmt"
-    // "math/rand"
-    "time"
+	"context"
+	"errors"
+	"time"
 
-    // "github.com/jackc/pgx/v5"
-    "github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Repository interface {
     ExecuteTransfer(ctx context.Context, senderID, receiverID string, amount float64) (*Transaction, error)
-}
+    GetTransactionsByUserID(ctx context.Context, userID string) ([]Transaction, error)}
 
 type repo struct {
     db *pgxpool.Pool
@@ -23,7 +20,6 @@ func NewRepository(db *pgxpool.Pool) Repository {
     return &repo{db: db}
 }
 
-// ExecuteTransfer performs the DB transaction (Lock -> Deduct -> Add -> Save)
 func (r *repo) ExecuteTransfer(ctx context.Context, senderID, receiverID string, amount float64) (*Transaction, error) {
     tx, err := r.db.Begin(ctx)
     if err != nil {
@@ -31,7 +27,6 @@ func (r *repo) ExecuteTransfer(ctx context.Context, senderID, receiverID string,
     }
     defer tx.Rollback(ctx)
 
-    // 1. Lock Sender & Check Balance
     var senderBalance float64
     err = tx.QueryRow(ctx, 
         "SELECT balance FROM wallets WHERE user_id = $1 FOR UPDATE", senderID,
@@ -44,13 +39,11 @@ func (r *repo) ExecuteTransfer(ctx context.Context, senderID, receiverID string,
         return nil, errors.New("insufficient balance")
     }
 
-    // 2. Deduct from Sender
     _, err = tx.Exec(ctx, "UPDATE wallets SET balance = balance - $1 WHERE user_id = $2", amount, senderID)
     if err != nil {
         return nil, err
     }
 
-    // 3. Add to Receiver
     res, err := tx.Exec(ctx, "UPDATE wallets SET balance = balance + $1 WHERE user_id = $2", amount, receiverID)
     if err != nil {
         return nil, err
@@ -58,8 +51,6 @@ func (r *repo) ExecuteTransfer(ctx context.Context, senderID, receiverID string,
     if res.RowsAffected() == 0 {
         return nil, errors.New("receiver not found")
     }
-
-    // 4. Save Transaction
     txn := &Transaction{
         SenderID:   senderID,
         ReceiverID: receiverID,
@@ -79,4 +70,31 @@ func (r *repo) ExecuteTransfer(ctx context.Context, senderID, receiverID string,
     }
 
     return txn, tx.Commit(ctx)
+}
+
+func (r *repo) GetTransactionsByUserID(ctx context.Context, userID string) ([]Transaction, error) {
+    query := `
+        SELECT id, sender_id, receiver_id, amount, status, created_at
+        FROM transactions
+        WHERE sender_id = $1 OR receiver_id = $1
+        ORDER BY created_at DESC
+    `
+
+    rows, err := r.db.Query(ctx, query, userID)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    var transactions []Transaction
+    for rows.Next() {
+        var t Transaction
+        err := rows.Scan(&t.ID, &t.SenderID, &t.ReceiverID, &t.Amount, &t.Status, &t.CreatedAt)
+        if err != nil {
+            return nil, err
+        }
+        transactions = append(transactions, t)
+    }
+
+    return transactions, nil
 }

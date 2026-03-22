@@ -14,7 +14,6 @@ func NewController(service Service) *Controller {
     return &Controller{service: service}
 }
 
-// InitTransfer handles POST /transfer
 func (ctrl *Controller) InitTransfer(c *gin.Context) {
     var req TransferRequest
     if err := c.ShouldBindJSON(&req); err != nil {
@@ -39,7 +38,7 @@ func (ctrl *Controller) InitTransfer(c *gin.Context) {
     c.JSON(http.StatusOK, resp)
 }
 
-// VerifyTransfer handles POST /transfer/verify
+
 func (ctrl *Controller) VerifyTransfer(c *gin.Context) {
     var req VerifyRequest
     if err := c.ShouldBindJSON(&req); err != nil {
@@ -54,4 +53,20 @@ func (ctrl *Controller) VerifyTransfer(c *gin.Context) {
     }
 
     c.JSON(http.StatusOK, resp)
+}
+func (ctrl *Controller) GetTransactionHistory(c *gin.Context) {
+    userID, exists := c.Get("user_id")
+    if !exists {
+        c.JSON(401, gin.H{"error": "unauthorized"})
+        return
+    }
+
+
+    resp, err := ctrl.service.GetHistory(c.Request.Context(), userID.(string))
+    if err != nil {
+        c.JSON(500, gin.H{"error": "could not fetch history"})
+        return
+    }
+
+    c.JSON(200, resp)
 }

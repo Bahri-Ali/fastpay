@@ -4,9 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-
-	// "fastpay-backend/pkg/mail"
-	email "fastpay-backend/pkg/emails"
+	"fastpay-backend/pkg/emails"
 	"fastpay-backend/pkg/jwt"
 	"fastpay-backend/pkg/utils"
 	"fmt"
@@ -18,6 +16,7 @@ import (
 type Service interface {
     InitiateTransfer(ctx context.Context, senderID string, req *TransferRequest, idempotencyKey string) (*TransferResponse, error)
     VerifyTransfer(ctx context.Context, req *VerifyRequest) (*TransferResponse, error)
+    GetHistory(ctx context.Context, userID string) (*TransactionListResponse, error) 
 }
 
 type service struct {
@@ -31,24 +30,20 @@ func NewService(repo Repository, redis *redis.Client, mailer *email.Mailer) Serv
 }
 
 func (s *service) InitiateTransfer(ctx context.Context, senderID string, req *TransferRequest, idempotencyKey string) (*TransferResponse, error) {
-    // 1. IDEMPOTENCY CHECK
-    // If key exists, it means request is processed or processing
+
     cacheKey := "idempotency:transfer:" + idempotencyKey
     val, err := s.redis.Get(ctx, cacheKey).Result()
     if err == nil {
-        // Return cached result if exists
         var cachedResp TransferResponse
         json.Unmarshal([]byte(val), &cachedResp)
         return &cachedResp, nil
     }
 
-    // 2. RATE LIMIT & RULES CHECK
     today := time.Now().Format("2006-01-02")
     countKey := fmt.Sprintf("tx_count:%s:%s", senderID, today)
     
     count, _ := s.redis.Get(ctx, countKey).Int()
 
-    // Logic: Amount > 1000 OR (Count >= 3) => Requires PIN
     requiresPIN := false
     if req.Amount > 1000 {
         requiresPIN = true
@@ -58,34 +53,27 @@ func (s *service) InitiateTransfer(ctx context.Context, senderID string, req *Tr
 
     
     if !requiresPIN {
-        // DIRECT TRANSFER
         txn, err := s.repo.ExecuteTransfer(ctx, senderID, req.ReceiverID, req.Amount)
         if err != nil {
             return nil, err
         }
 
-        // Increment counter
         s.redis.Incr(ctx, countKey)
         s.redis.Expire(ctx, countKey, 24*time.Hour)
 
-        // Save to Idempotency Redis
         resp := &TransferResponse{
             Status:        "completed",
             TransactionID: txn.ID,
             Message:       "Transfer successful",
         }
         data, _ := json.Marshal(resp)
-        s.redis.Set(ctx, cacheKey, data, 20*time.Minute)
-
+        s.redis.Set(ctx, cacheKey, data, 1*time.Minute)
         return resp, nil
     }
 
-    // 4. PIN REQUIRED FLOW
-    // Generate Verification Token & PIN
-    verificationToken := jwt.ValidateToken() // You need this function in utils
-    pin := utils.GeneratePIN()                       // You need this function in utils (4 digits)
+    verificationToken := jwt.ValidateToken() 
+    pin := utils.GeneratePIN()                   
 
-    // Store Pending Data in Redis (Valid for 5 minutes)
     pendingData := map[string]interface{}{
         "sender_id":       senderID,
         "receiver_id":     req.ReceiverID,
@@ -97,8 +85,6 @@ func (s *service) InitiateTransfer(ctx context.Context, senderID string, req *Tr
     pendingKey := "pending:transfer:" + verificationToken
     s.redis.Set(ctx, pendingKey, dataJSON, 5*time.Minute)
 
-    // Send Email (Assume we fetch email from DB, here we mock it)
-    // In real app: getUserByID(senderID) -> user.Email
     s.mailer.Send("sender@example.com", "FastPay Verification PIN", fmt.Sprintf("Your PIN is: %s", pin))
 
     resp := &TransferResponse{
@@ -107,7 +93,6 @@ func (s *service) InitiateTransfer(ctx context.Context, senderID string, req *Tr
         Message:           "A PIN code has been sent to your email",
     }
     
-    // Cache the "verification required" state for idempotency
     data, _ := json.Marshal(resp)
     s.redis.Set(ctx, cacheKey, data, 20*time.Minute)
 
@@ -115,7 +100,6 @@ func (s *service) InitiateTransfer(ctx context.Context, senderID string, req *Tr
 }
 
 func (s *service) VerifyTransfer(ctx context.Context, req *VerifyRequest) (*TransferResponse, error) {
-    // 1. Get Pending Data
     pendingKey := "pending:transfer:" + req.VerificationToken
     dataStr, err := s.redis.Get(ctx, pendingKey).Result()
     if err != nil {
@@ -125,12 +109,10 @@ func (s *service) VerifyTransfer(ctx context.Context, req *VerifyRequest) (*Tran
     var data map[string]interface{}
     json.Unmarshal([]byte(dataStr), &data)
 
-    // 2. Check PIN
     if data["pin"] != req.PIN {
         return nil, errors.New("invalid PIN")
     }
 
-    // 3. Execute Transfer
     senderID := data["sender_id"].(string)
     receiverID := data["receiver_id"].(string)
     amount := data["amount"].(float64)
@@ -140,7 +122,6 @@ func (s *service) VerifyTransfer(ctx context.Context, req *VerifyRequest) (*Tran
         return nil, err
     }
 
-    // 4. Cleanup & Update Count
     s.redis.Del(ctx, pendingKey)
     
     today := time.Now().Format("2006-01-02")
@@ -148,15 +129,46 @@ func (s *service) VerifyTransfer(ctx context.Context, req *VerifyRequest) (*Tran
     s.redis.Incr(ctx, countKey)
     s.redis.Expire(ctx, countKey, 24*time.Hour)
 
-    // Update Idempotency Cache to Success
     cacheKey := "idempotency:transfer:" + data["idempotency_key"].(string)
     resp := &TransferResponse{Status: "completed", TransactionID: txn.ID}
     dataResp, _ := json.Marshal(resp)
     s.redis.Set(ctx, cacheKey, dataResp, 20*time.Minute)
 
-    // Send Success Emails
     s.mailer.Send("sender@example.com", "Transfer Success", fmt.Sprintf("You sent %.2f", amount))
     s.mailer.Send("receiver@example.com", "Money Received", fmt.Sprintf("You received %.2f", amount))
 
     return resp, nil
+}
+
+func (s *service) GetHistory(ctx context.Context, userID string) (*TransactionListResponse, error) {
+    txns, err := s.repo.GetTransactionsByUserID(ctx, userID)
+    if err != nil {
+        return nil, err
+    }
+
+    var response TransactionListResponse
+
+    for _, t := range txns {
+        item := TransactionItemDTO{
+            ID:       t.ID,
+            Amount:   t.Amount,
+            Currency: "DZD",
+            Status:   t.Status,
+            Date:     t.CreatedAt,
+        }
+
+        if t.SenderID == userID {
+            item.Type = "sent"
+          
+            item.Counterparty = "User: " + t.ReceiverID 
+            item.Amount = -t.Amount 
+        } else {
+            item.Type = "received"
+            item.Counterparty = "From: " + t.SenderID
+        }
+
+        response.Transactions = append(response.Transactions, item)
+    }
+
+    return &response, nil
 }
