@@ -32,8 +32,20 @@ type TransactionItemDTO struct {
     Date         time.Time `json:"date"`
 }
 
+type TransactionCach struct {
+    ID           string    `json:"id"`
+    Amount       float64   `json:"amount"`
+    Currency     string    `json:"currency"`    
+    Type         string    `json:"type"`         
+    Date         time.Time `json:"date"`
+}
+
 type TransactionListResponse struct {
     Transactions []TransactionItemDTO `json:"transactions"`
+}
+
+type TransactionCachSaved struct {
+    Transactions []TransactionCach `json:"transactions"`
 }
 type WSEvent struct {
     Type string      `json:"type"`

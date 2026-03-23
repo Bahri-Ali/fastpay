@@ -1,12 +1,15 @@
 package routes
 
 import (
+	"fastpay-backend/database"
 	"fastpay-backend/internal/auth"
 	"fastpay-backend/internal/middleware"
-	"fastpay-backend/internal/transaction" 
+	"fastpay-backend/internal/transaction"
 	"fastpay-backend/internal/user"
+	"log"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 )
 
 type RouteConfig struct {
@@ -14,6 +17,7 @@ type RouteConfig struct {
     AuthRepo     auth.Repository      
     TxController *transaction.Controller 
     UserController *user.Controller
+    Rdb *redis.Client
 }
 
 func SetupRouter(cfg *RouteConfig) *gin.Engine {
@@ -31,7 +35,9 @@ func SetupRouter(cfg *RouteConfig) *gin.Engine {
             AuthApi.POST("/login", cfg.AuthCntr.Login)
         }
     }
-
+    if database.Rdb == nil {
+    log.Println("❌ Redis is NIL")
+}
     if cfg.TxController != nil {
         protected := api.Group("/")
         protected.Use(middleware.AuthMiddleware(cfg.AuthRepo))
@@ -39,6 +45,9 @@ func SetupRouter(cfg *RouteConfig) *gin.Engine {
             protected.POST("/transfer", cfg.TxController.InitTransfer)
             protected.POST("/transfer/verify", cfg.TxController.VerifyTransfer)
             protected.GET("/GetTransactions", cfg.TxController.GetTransactionHistory)
+            protected.GET("/ws/transactions", func(c *gin.Context) {
+            transaction.HandleWebSocket(c,database.Rdb) 
+})
         }
     }
 

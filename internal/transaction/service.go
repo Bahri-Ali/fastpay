@@ -85,7 +85,7 @@ func (s *service) InitiateTransfer(ctx context.Context, senderID string, req *Tr
     pendingKey := "pending:transfer:" + verificationToken
     s.redis.Set(ctx, pendingKey, dataJSON, 5*time.Minute)
 
-    s.mailer.Send("sender@example.com", "FastPay Verification PIN", fmt.Sprintf("Your PIN is: %s", pin))
+
 
     resp := &TransferResponse{
         Status:            "verification_required",
@@ -95,7 +95,25 @@ func (s *service) InitiateTransfer(ctx context.Context, senderID string, req *Tr
     
     data, _ := json.Marshal(resp)
     s.redis.Set(ctx, cacheKey, data, 20*time.Minute)
+    tx := TransactionCach{
+        ID:       "123",
+        Amount:   100.0,
+        Currency: "USD",
+        Type:     "credit",
+        Date:     time.Now(),
+    }
 
+
+    key := fmt.Sprintf("user:txs:%s", senderID)
+    jsonData, _ := json.Marshal(tx)
+    s.redis.LPush(ctx, key, jsonData)
+    s.redis.LTrim(ctx, key, 0, 9)
+
+    // 3. Publish Event
+    channelName := fmt.Sprintf("user_updates:%s", senderID)
+    s.redis.Publish(ctx, channelName, "new_tx")
+
+    s.mailer.Send("sender@example.com", "FastPay Verification PIN", fmt.Sprintf("Your PIN is: %s", pin))
     return resp, nil
 }
 
